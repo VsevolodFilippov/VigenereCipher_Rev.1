@@ -14,7 +14,6 @@ import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.FileTime;
-
 import javax.imageio.ImageIO;
 import javax.sound.sampled.LineUnavailableException;
 import javax.sound.sampled.UnsupportedAudioFileException;
@@ -35,6 +34,8 @@ public class VigenereCipher extends SimpleFileVisitor<Path> implements ActionLis
 	private char[][] vigenereSquare;
 	private String plainText;
 	private String cipher;	
+	private int cipherCharsSequencer;
+	private Timer cipherPrintTimer;
 	private static Thread gameSoundThread;
 	private static Thread backgroundSoundThread;
 	
@@ -65,9 +66,11 @@ public class VigenereCipher extends SimpleFileVisitor<Path> implements ActionLis
 	private JButton clearScreenButton;
 	private JButton exitButton;	
 	private Random random;
+	private Border messageLabelBeveledBorder;
 	private int incrementR;
 	private int incrementG;
-	private int incrementB;		
+	private int incrementB;	
+	private int printRate;
 			
 	public VigenereCipher() {
 		keyWord="shark";
@@ -82,6 +85,7 @@ public class VigenereCipher extends SimpleFileVisitor<Path> implements ActionLis
 		incrementR=255;
 		incrementG=255;
 		incrementB=255;
+		printRate = 5;
 		
 		mainFrame = new JFrame("VigenereCipher");
 		mainFrame.setResizable(false);
@@ -127,7 +131,7 @@ public class VigenereCipher extends SimpleFileVisitor<Path> implements ActionLis
 		passwordPane.add(label);
 		passwordPane.add(passwordField);
 		passwordPane.add(okayButton);
-		passwordPane.setVisible(true);
+		passwordPane.setVisible(true);		
         GridBagConstraints gbc;
         gbc = new GridBagConstraints();
 		gbc.gridx = 0;
@@ -189,7 +193,7 @@ public class VigenereCipher extends SimpleFileVisitor<Path> implements ActionLis
 				TitledBorder.DEFAULT_POSITION, new Font("Aerial", Font.ITALIC, 14), Color.WHITE);
 		
 		infoPanel = new JPanel();
-		infoPanel.setPreferredSize(new Dimension(350,90));
+		infoPanel.setPreferredSize(new Dimension(350,90));		
 		infoPanel.setBorder(infoPanelBorder);
 		infoPanel.setLayout(new GridBagLayout());
 		infoPanel.setOpaque(false);
@@ -198,13 +202,13 @@ public class VigenereCipher extends SimpleFileVisitor<Path> implements ActionLis
 		gbc.gridy = 0;		
 		adjustmentsPane.add(infoPanel, gbc);	
 		
-		Border messageLabelBeveledBorder = BorderFactory.createBevelBorder(BevelBorder.LOWERED, Color.BLACK, Color.BLACK);
+		messageLabelBeveledBorder = BorderFactory.createBevelBorder(BevelBorder.LOWERED, Color.BLACK, Color.BLACK);
 		TitledBorder messageLabelBorder = BorderFactory.createTitledBorder(messageLabelBeveledBorder, "Message", TitledBorder.RIGHT, 
 				TitledBorder.DEFAULT_POSITION, new Font("Aerial", Font.ITALIC, 14), Color.WHITE);
 						
 		String s = String.format("%tH:%tM", Calendar.getInstance(), Calendar.getInstance());
 		informationLabel = new JLabel(s);
-		informationLabel.setFont(new Font("Times New Roman", Font.ITALIC, 20));
+		informationLabel.setFont(new Font("Times New Roman", Font.BOLD, 20));
 		informationLabel.setForeground(new Color(0xFFFFFF));
 		informationLabel.setBorder(BorderFactory.createEmptyBorder());
 		informationLabel.setFocusable(false);
@@ -214,7 +218,8 @@ public class VigenereCipher extends SimpleFileVisitor<Path> implements ActionLis
 		gbc.insets = new Insets(0,0,10,0);
 		infoPanel.add(informationLabel, gbc);		
 		
-		textCipherTextArea = new JTextArea("28.\sSummary of Text Aids.\r\n"
+		textCipherTextArea = new JTextArea(
+				"28.\sSummary of Text Aids.\r\n"
 				+ "J-----J = Stress Mark\r\n"
 				+ "X = Period\r\n"
 				+ "Y = Comma\r\n"
@@ -223,17 +228,18 @@ public class VigenereCipher extends SimpleFileVisitor<Path> implements ActionLis
 				+ "XY = Semicolon\r\n"
 				+ "KK------KK = Parenthesis \r\n"
 				+ "YY = Hyphen, Dash, Slant\r\n");
-		textCipherTextArea.setColumns(50);
+		textCipherTextArea.setColumns(80);
 		textCipherTextArea.setLineWrap(true);
 		textCipherTextArea.setRows(5);
 		textCipherTextArea.setWrapStyleWord(true);		
 		textCipherTextArea.setBackground(new Color(20,20,20));
-		textCipherTextArea.setSelectedTextColor(new Color(0x0061FF));
+		textCipherTextArea.setForeground(new Color(0x91FFF4));
+		textCipherTextArea.setSelectedTextColor(new Color(0xAD0011));
 		textCipherTextArea.setSelectionColor(new Color(20,20,20));		
-		textCipherTextArea.setFont(new Font("Aerial", Font.BOLD, 18));		
+		textCipherTextArea.setFont(new Font("Aerial", Font.BOLD, 18));
+		textCipherTextArea.setTabSize(3);		
 		textCipherTextArea.setBorder(BorderFactory.createCompoundBorder(messageLabelBorder, 
-				BorderFactory.createEmptyBorder(10, 25, 10, 50)));		
-		textCipherTextArea.setForeground(Color.WHITE);
+				BorderFactory.createEmptyBorder(10, 25, 10, 50)));			
         
         textCipherScrollPane = new JScrollPane(textCipherTextArea);
 		textCipherScrollPane.setPreferredSize(new Dimension(950,540));
@@ -259,10 +265,11 @@ public class VigenereCipher extends SimpleFileVisitor<Path> implements ActionLis
 		
 		cipherButton = new JButton("Cipher");
 		cipherButton.setFont(new Font("Verdana", Font.BOLD, 12));
-		cipherButton.setBackground(Color.WHITE);
-		cipherButton.setForeground(Color.BLACK);
+		cipherButton.setBackground(new Color(20,20,20));
+		cipherButton.setForeground(Color.LIGHT_GRAY);
 		cipherButton.setBorder(BorderFactory.createBevelBorder(BevelBorder.RAISED, new Color(80,80,80), Color.BLACK));
-		cipherButton.setFocusable(false);
+		cipherButton.setFocusable(true);
+		cipherButton.setMnemonic(0);
 		cipherButton.setLayout(new GridBagLayout());
 		gbc = new GridBagConstraints();
 		gbc.gridx = 0;
@@ -280,10 +287,10 @@ public class VigenereCipher extends SimpleFileVisitor<Path> implements ActionLis
 		
 		decipherButton = new JButton("Decipher");
 		decipherButton.setFont(new Font("Verdana", Font.BOLD, 12));
-		decipherButton.setBackground(Color.WHITE);
-		decipherButton.setForeground(Color.BLACK);
+		decipherButton.setBackground(new Color(20,20,20));
+		decipherButton.setForeground(Color.LIGHT_GRAY);
 		decipherButton.setBorder(BorderFactory.createBevelBorder(BevelBorder.RAISED, new Color(80,80,80), Color.BLACK));
-		decipherButton.setFocusable(false);
+		decipherButton.setFocusable(true);
 		decipherButton.setLayout(new GridBagLayout());
 		gbc = new GridBagConstraints();
 		gbc.gridx = 1;
@@ -301,8 +308,8 @@ public class VigenereCipher extends SimpleFileVisitor<Path> implements ActionLis
 		
 		readFileButton = new JButton("ReadFile");
 		readFileButton.setFont(new Font("Verdana", Font.BOLD, 12));
-		readFileButton.setBackground(Color.WHITE);
-		readFileButton.setForeground(Color.BLACK);
+		readFileButton.setBackground(new Color(20,20,20));
+		readFileButton.setForeground(Color.LIGHT_GRAY);
 		readFileButton.setBorder(BorderFactory.createBevelBorder(BevelBorder.RAISED, new Color(80,80,80), Color.BLACK));
 		readFileButton.setFocusable(false);
 		readFileButton.setLayout(new GridBagLayout());
@@ -323,8 +330,8 @@ public class VigenereCipher extends SimpleFileVisitor<Path> implements ActionLis
 		writeFileButton = new JButton("WriteFile");
 		writeFileButton.setToolTipText("Write blank screen to erase file");
 		writeFileButton.setFont(new Font("Verdana", Font.BOLD, 12));
-		writeFileButton.setBackground(Color.WHITE);
-		writeFileButton.setForeground(Color.BLACK);
+		writeFileButton.setBackground(new Color(20,20,20));
+		writeFileButton.setForeground(Color.LIGHT_GRAY);
 		writeFileButton.setBorder(BorderFactory.createBevelBorder(BevelBorder.RAISED, new Color(80,80,80), Color.BLACK));
 		writeFileButton.setFocusable(false);
 		writeFileButton.setLayout(new GridBagLayout());
@@ -416,32 +423,7 @@ public class VigenereCipher extends SimpleFileVisitor<Path> implements ActionLis
 		mainFrame.pack();
 		mainFrame.setLocationRelativeTo(null);
 		mainFrame.setVisible(true);					
-				
-		int delay = 10000; 	
-	  ActionListener taskPerformer = new ActionListener() {
-	      public void actionPerformed(ActionEvent evt) {
-	    	  String s = String.format("%tH:%tM", Calendar.getInstance(), Calendar.getInstance());
-	    	  informationLabel.setText(s);
-	    	  actionPane.setBorder(BorderFactory.createMatteBorder(2,0,0,0,
-	    			  new Color(incrementR, incrementG, incrementB)));
-	    	  
-	    	  if(passwordPane.isVisible()) {
-	    		  passwordField.setBorder(BorderFactory.createMatteBorder(0,0,1,0,
-		    			  new Color(incrementR, incrementG, incrementB)));
-	    	  }	    	  
-	    	  
-	    	  TitledBorder messageLabelBorder = BorderFactory.createTitledBorder(messageLabelBeveledBorder, "Message", TitledBorder.RIGHT, 
-		  				TitledBorder.DEFAULT_POSITION, new Font("Aerial", Font.ITALIC, 14),
-		  				new Color((incrementR+150)%255, (incrementG+150)%255, (incrementB+150)%255));	    	  
-	    	  textCipherTextArea.setBorder(BorderFactory.createCompoundBorder(messageLabelBorder, 
-	  				BorderFactory.createEmptyBorder(10, 25, 10, 50)));
-	    	  textCipherTextArea.setCaretColor(new Color((incrementR+50)%255, (incrementG+50)%255, (incrementB+50)%255));
-	    	  incrementR = random.nextInt(255);
-	    	  incrementG = random.nextInt(255);
-	    	  incrementB = random.nextInt(255);		    	 
-	      }
-	  };new Timer(delay, taskPerformer).start();	
-	  
+		GUIBorderFlash(); 		
 	}	
 	
 	public static void main(String[] args) throws UnsupportedAudioFileException, IOException, LineUnavailableException{
@@ -576,13 +558,13 @@ public class VigenereCipher extends SimpleFileVisitor<Path> implements ActionLis
 		if (keyWord.length()!=0) {			
 			shift = (int)shiftSpinner.getValue();
 			plainText = textCipherTextArea.getText();
-			cipheringEngine();
-			textCipherTextArea.setText(cipher);
-			cipher="";
+			cipheringEngine();	
+			cipherPrint(printRate);			
 			plainText="";
 			keyWord = "";
 			shift = 0;
 		} else {
+			informationLabel.setForeground(new Color(0xD80000));
 			informationLabel.setText("No keyword");
 		}
 	}	
@@ -628,11 +610,14 @@ public class VigenereCipher extends SimpleFileVisitor<Path> implements ActionLis
 			keyWord = "";
 			shift = 0;
 		} else {
+			informationLabel.setForeground(new Color(0xD80000));
 			informationLabel.setText("No keyword");
 		}
 	}	
 	
 	protected void readFileButtonActionPerformed(ActionEvent e) {
+		textCipherTextArea.setText("");
+		textCipherTextArea.setEditable(true);
 		try ( FileReader fr = new FileReader("files\\source.file")){ 
 		      int c; 
 		      // Read and display the file. 
@@ -641,6 +626,7 @@ public class VigenereCipher extends SimpleFileVisitor<Path> implements ActionLis
 		    } catch(IOException ioe) { 
 		      System.out.println("I/O Error: " + ioe); 
 		    }
+			informationLabel.setForeground(new Color(0xD8B400));
 			informationLabel.setText("Path:\s"+"\\files\\source.file");
 			try {
 				visitFile();
@@ -660,6 +646,7 @@ public class VigenereCipher extends SimpleFileVisitor<Path> implements ActionLis
 			    	  if(i%50==0&&i!=0)f0.write('\n');
 			        f0.write(buffer[i]); 
 			      } 
+			      informationLabel.setForeground(new Color(0xD8B400));
 			      informationLabel.setText("Path:\s"+"\\files\\target.file");			      		 
 			    } catch(IOException ioe) { 
 			      ioe.printStackTrace(); 
@@ -672,11 +659,65 @@ public class VigenereCipher extends SimpleFileVisitor<Path> implements ActionLis
 				}
 	}
 	
-	protected void equalizeButtonActionPerformed(ActionEvent e) {
+	protected void equalizeButtonActionPerformed(ActionEvent e) {	
+		textCipherTextArea.setEditable(false);
+		TreeMap<Character, Integer> openAlphabet = new TreeMap<Character, Integer>();
+		for (int i = 0; i < engLength; i++) {
+			openAlphabet.put((char)(engStartIndex+i), 0);
+		}
+		String processedText = textCipherTextArea.getText();
+		for (int i = 0; i < processedText.length(); i++) {
+			char tempKey = Character.toLowerCase(processedText.charAt(i));
+			if(Character.isLetter(tempKey)) {
+				int tempValue = openAlphabet.get(tempKey)+1;
+				openAlphabet.put(tempKey, tempValue);
+				tempValue=0;
+			}
+		}		
+			
+		Set<Map.Entry<Character, Integer>> charsEncounter = openAlphabet.entrySet();
+		int totalEntries = 0;
+		double appearancePercentage = 0;
+			
+		for(Map.Entry<Character, Integer> me: charsEncounter) {
+				totalEntries +=me.getValue();
+		}
+		textCipherTextArea.append("\n");
+		for (int i = 0; i < textCipherTextArea.getColumns(); i++) {
+			textCipherTextArea.append("_");
+		}
+		textCipherTextArea.append("\n");
+		textCipherTextArea.append("Total chars:\s"+String.valueOf(totalEntries)+"\n");
+		int average = totalEntries/engLength;		
+		textCipherTextArea.append("Ch."+"\t"+"Qtty."+"\t"+"\sDist."+"\n");		
 		
+		int textLengthDivider = 1; 
+		if(totalEntries>1000) {
+			textLengthDivider = Math.ceilDiv(totalEntries,1000);
+		}
+		
+		TreeMap<Character, Integer> equalizingMap = new TreeMap<Character, Integer>();
+		for(Map.Entry<Character, Integer> me: charsEncounter) {
+			appearancePercentage = (double)me.getValue()*100/totalEntries;
+			textCipherTextArea.append(String.valueOf("\s"+me.getKey()).toUpperCase()+
+					"\t\s"+String.valueOf(me.getValue())+"\t"+String.format("%.2f",appearancePercentage)+"%\t");
+			for (int i = 0; i < me.getValue(); i++) {	
+					if(i%textLengthDivider==0)textCipherTextArea.append("|");
+			}	
+			int absoluteDifference = me.getValue()-average;
+			equalizingMap.put(me.getKey(), absoluteDifference);
+			if(absoluteDifference<0) textCipherTextArea.append("\s(-"+String.valueOf(Math.abs(absoluteDifference)+")"+"\n"));
+			else if(absoluteDifference>0) textCipherTextArea.append("\s(+"+String.valueOf(Math.abs(absoluteDifference)+")"+"\n"));
+			else textCipherTextArea.append("\n");
+		}			
+		
+		for (int i = 0; i < textCipherTextArea.getColumns(); i++) {
+			textCipherTextArea.append("_");
+		}
 	}
 	
 	protected void clearScreenButtonActionPerformed(ActionEvent e){
+		textCipherTextArea.setEditable(true);
 		textCipherTextArea.setText("");
 	}
 	
@@ -705,6 +746,51 @@ public class VigenereCipher extends SimpleFileVisitor<Path> implements ActionLis
 		         }
 			});
 	}
+	
+	public void cipherPrint(int speed){
+		textCipherTextArea.setText("");
+		 int delay2 = speed; 
+			 if(cipher.length()!=0) {
+			 cipherCharsSequencer = 0;
+				  ActionListener taskPerformer2 = new ActionListener() {
+				      public void actionPerformed(ActionEvent evt) {
+				    	  textCipherTextArea.append(String.valueOf(cipher.charAt(cipherCharsSequencer)));
+				    	  if(cipherCharsSequencer>=cipher.length()-1) {
+				    		  cipherPrintTimer.stop();
+				    		  cipherCharsSequencer=0;
+				    		  cipher="";
+				    	  } else cipherCharsSequencer++;	    	  
+				      }
+				  };cipherPrintTimer = new Timer(delay2, taskPerformer2);
+				cipherPrintTimer.start(); 
+			 }else informationLabel.setText("No cipher to print");
+	}
+	
+	public void GUIBorderFlash() {
+		int delay = 10000; 	
+		  ActionListener taskPerformer = new ActionListener() {
+		      public void actionPerformed(ActionEvent evt) {
+		    	  informationLabel.setForeground(new Color(0xFFFFFF));
+		    	  String s = String.format("%tH:%tM", Calendar.getInstance(), Calendar.getInstance());
+		    	  informationLabel.setText(s);		    	  
+		    	  actionPane.setBorder(BorderFactory.createMatteBorder(2,0,0,0,
+		    			  new Color(incrementR, incrementG, incrementB)));
+		    	  if(passwordPane.isVisible()) {
+		    		  passwordField.setBorder(BorderFactory.createMatteBorder(0,0,1,0,
+			    			  new Color(incrementR, incrementG, incrementB)));
+		    	  }	    	  		    	  
+		    	  TitledBorder messageLabelBorder = BorderFactory.createTitledBorder(messageLabelBeveledBorder, "Message", TitledBorder.RIGHT, 
+			  				TitledBorder.DEFAULT_POSITION, new Font("Aerial", Font.ITALIC, 14),
+			  				new Color((incrementR+150)%255, (incrementG+150)%255, (incrementB+150)%255));	    	  
+		    	  textCipherTextArea.setBorder(BorderFactory.createCompoundBorder(messageLabelBorder, 
+		  				BorderFactory.createEmptyBorder(10, 25, 10, 50)));
+		    	  textCipherTextArea.setCaretColor(new Color((incrementR+50)%255, (incrementG+50)%255, (incrementB+50)%255));
+		    	  incrementR = random.nextInt(255);
+		    	  incrementG = random.nextInt(255);
+		    	  incrementB = random.nextInt(255);		    	 
+		      }
+		  };new Timer(delay, taskPerformer).start();
+	}	
 	
 	protected void exitButtonActionPerformed(ActionEvent e) throws InterruptedException{		
 		if(GameSoundPlayback.secureUplinkSoundClip.isActive()||
