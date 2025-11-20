@@ -44,7 +44,7 @@ public class VigenereCipher extends SimpleFileVisitor<Path> implements ActionLis
 	private JFrame mainFrame;
 	private JPanel mainPanel;
 	private JPanel imagePanel;
-	private static BufferedImage img;
+	private BufferedImage img;
 	private JPasswordField passwordField;
 	private JButton okayButton;
 	private JPanel passwordPane;
@@ -79,8 +79,7 @@ public class VigenereCipher extends SimpleFileVisitor<Path> implements ActionLis
 		engLength = 26;
 		plainText = "";	
 		cipher = "";		
-		tempPassHash = 1477914;
-		img = null;		
+		tempPassHash = 1477914;			
 		random = new Random();
 		incrementR=255;
 		incrementG=255;
@@ -92,6 +91,7 @@ public class VigenereCipher extends SimpleFileVisitor<Path> implements ActionLis
 		try {
     	    img = ImageIO.read(new File("image\\Emblem.jpg"));
     	} catch (IOException e) {
+    		e.printStackTrace();
     	} 
 		mainPanel = new ImagePanel(new ImageIcon("image\\frameBackground.jpg").getImage());	
 		imagePanel = new ImagePanel(new ImageIcon("image\\frameBackgroundBW.jpg").getImage());
@@ -100,7 +100,7 @@ public class VigenereCipher extends SimpleFileVisitor<Path> implements ActionLis
 		mainFrame.setIconImage(img);
 		mainPanel.setPreferredSize(new Dimension(1024,768));
 		imagePanel.setPreferredSize(new Dimension(1024,768));
-		mainFrame.getContentPane().add(mainPanel, BorderLayout.CENTER);
+		mainFrame.add(mainPanel, BorderLayout.CENTER);
 		imagePanel.setLayout(new GridBagLayout());
 		imagePanel.setVisible(false);
 		passwordField = new JPasswordField(10);
